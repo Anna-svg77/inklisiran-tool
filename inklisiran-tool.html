@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Инструмент: Назначение Инклисирана</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f8f8f8; }
+    h2 { color: #2c3e50; }
+    label { display: block; margin-top: 10px; }
+    input, select { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 15px; padding: 10px 20px; }
+    .patient { background: #fff; padding: 10px; margin: 10px 0; border-left: 4px solid #2c3e50; }
+    .criteria { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Идентификация пациентов для назначения Инклисирана</h2>
+
+  <label>ФИО пациента:</label>
+  <input id="fio" type="text">
+
+  <label>Город:</label>
+  <input id="city" type="text">
+
+  <label>ЛПНП (ммоль/л):</label>
+  <input id="ldl" type="number" step="0.1">
+
+  <label>Применяемый статин:</label>
+  <select id="statin">
+    <option value="atorvastatin">Аторвастатин</option>
+    <option value="rosuvastatin">Розувастатин</option>
+    <option value="simvastatin">Симвастатин</option>
+  </select>
+
+  <label>Доза статина (мг):</label>
+  <input id="dose" type="number">
+
+  <label>Принимает эзетимиб?</label>
+  <select id="ezetimibe">
+    <option value="yes">Да</option>
+    <option value="no">Нет</option>
+  </select>
+
+  <div class="criteria">
+    <label><input type="checkbox" id="mi"> Перенесённый инфаркт</label>
+    <label><input type="checkbox" id="stroke"> Инсульт</label>
+    <label><input type="checkbox" id="ascvd"> Иные ССЗ (ИБС, ХСН и пр.)</label>
+    <label><input type="checkbox" id="diabetes"> Сахарный диабет</label>
+    <label><input type="checkbox" id="ckd"> ХБП</label>
+  </div>
+
+  <button onclick="checkEligibility()">Проверить пациента</button>
+
+  <p id="result" style="margin-top:20px;font-weight:bold;"></p>
+
+  <button onclick="savePatient()">Сохранить пациента</button>
+
+  <h3>Список пациентов</h3>
+  <div id="patientList"></div>
+
+  <script>
+    function checkEligibility() {
+      const ldl = parseFloat(document.getElementById('ldl').value);
+      const statin = document.getElementById('statin').value;
+      const dose = parseInt(document.getElementById('dose').value);
+      const ezetimibe = document.getElementById('ezetimibe').value === 'yes';
+
+      const mi = document.getElementById('mi').checked;
+      const stroke = document.getElementById('stroke').checked;
+      const ascvd = document.getElementById('ascvd').checked;
+      const diabetes = document.getElementById('diabetes').checked;
+      const ckd = document.getElementById('ckd').checked;
+
+      const hasCriteria = mi || stroke || ascvd || diabetes || ckd;
+
+      const maxDoses = {
+        atorvastatin: 80,
+        rosuvastatin: 40,
+        simvastatin: 40
+      };
+
+      const isMaxDose = dose >= maxDoses[statin];
+
+      if (!hasCriteria) {
+        document.getElementById('result').innerText = "Нет показаний по критериям риска.";
+        return;
+      }
+
+      if (!isMaxDose) {
+        document.getElementById('result').innerText = "Не достигнута максимальная доза статина.";
+        return;
+      }
+
+      if (!ezetimibe) {
+        document.getElementById('result').innerText = "Нет эзетимиба в терапии.";
+        return;
+      }
+
+      if ((mi || stroke || ascvd) && ldl >= 1.4) {
+        document.getElementById('result').innerText = "Пациент ПОДХОДИТ для инклисирана.";
+      } else if ((diabetes || ckd) && ldl >= 1.8) {
+        document.getElementById('result').innerText = "Пациент ПОДХОДИТ для инклисирана.";
+      } else {
+        document.getElementById('result').innerText = "Уровень ЛПНП недостаточен для назначения.";
+      }
+    }
+
+    function savePatient() {
+      const fio = document.getElementById('fio').value.trim();
+      const city = document.getElementById('city').value.trim();
+      if (!fio || !city) return;
+
+      const patient = {
+        fio,
+        city,
+        date: new Date().toLocaleString()
+      };
+
+      let list = JSON.parse(localStorage.getItem('patients') || '[]');
+      list.push(patient);
+      localStorage.setItem('patients', JSON.stringify(list));
+      displayPatients();
+    }
+
+    function deletePatient(index) {
+      let list = JSON.parse(localStorage.getItem('patients') || '[]');
+      list.splice(index, 1);
+      localStorage.setItem('patients', JSON.stringify(list));
+      displayPatients();
+    }
+
+    function displayPatients() {
+      const container = document.getElementById('patientList');
+      container.innerHTML = '';
+      const list = JSON.parse(localStorage.getItem('patients') || '[]');
+      list.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'patient';
+        div.innerHTML = `<strong>${p.fio}</strong> (${p.city})<br><small>${p.date}</small><br><button onclick="deletePatient(${i})">Удалить</button>`;
+        container.appendChild(div);
+      });
+    }
+
+    window.onload = displayPatients;
+  </script>
+</body>
+</html>
